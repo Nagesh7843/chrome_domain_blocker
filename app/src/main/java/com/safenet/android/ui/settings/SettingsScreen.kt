@@ -46,7 +46,7 @@ fun SettingsScreen(
     var unenrollPasscode by remember { mutableStateOf("") }
     var unenrollError by remember { mutableStateOf<String?>(null) }
 
-    val adbCommand = "adb shell dpm set-device-owner com.safenet.android/.dpc.receiver.SafeNetDeviceAdminReceiver"
+    val adbCommand = "adb shell dpm set-device-owner ${context.packageName}/com.safenet.android.dpc.receiver.SafeNetDeviceAdminReceiver"
 
     LazyColumn(
         modifier = modifier
