@@ -76,10 +76,12 @@ class DnsPacketTest {
         val buffer = ByteBuffer.wrap(responseBytes)
         val respId = buffer.short.toInt() and 0xFFFF
         val respFlags = buffer.short.toInt() and 0xFFFF
+        val qdCount = buffer.short.toInt() and 0xFFFF
         val anCount = buffer.short.toInt() and 0xFFFF
 
         assertEquals(0x7777, respId)
         assertEquals(3, respFlags and 0x000F) // RCODE = 3 (NXDOMAIN)
+        assertEquals(1, qdCount)
         assertEquals(0, anCount)
     }
 

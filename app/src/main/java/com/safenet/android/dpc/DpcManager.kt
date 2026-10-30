@@ -63,7 +63,12 @@ class DpcManager(private val context: Context) {
     fun isAlwaysOnLockdownEnabled(): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                devicePolicyManager.isAlwaysOnVpnLockdown(adminComponent)
+                try {
+                    val method = devicePolicyManager.javaClass.getMethod("isAlwaysOnVpnLockdown", ComponentName::class.java)
+                    method.invoke(devicePolicyManager, adminComponent) as Boolean
+                } catch (e: Exception) {
+                    isAlwaysOnVpnConfigured()
+                }
             } else {
                 isAlwaysOnVpnConfigured()
             }
@@ -85,7 +90,7 @@ class DpcManager(private val context: Context) {
             // 1. Disable Android OS Private DNS (DoT)
             devicePolicyManager.setGlobalSetting(
                 adminComponent,
-                Settings.Global.PRIVATE_DNS_MODE,
+                "private_dns_mode",
                 "off"
             )
 
