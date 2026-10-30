@@ -82,13 +82,6 @@ class SafeNetVpnService : VpnService() {
                 .addAddress("fd00::2", 128)
                 .addRoute("fd00::1", 128)
                 .addDnsServer("fd00::1")
-                // Trap well-known hardcoded DNS addresses to prevent app-level bypasses
-                .addRoute("8.8.8.8", 32)
-                .addRoute("8.8.4.4", 32)
-                .addRoute("1.1.1.1", 32)
-                .addRoute("1.0.0.1", 32)
-                .addRoute("9.9.9.9", 32)
-                .addRoute("208.67.222.222", 32)
                 .setBlocking(true)
 
             vpnInterface = builder.establish()

@@ -58,46 +58,32 @@ class DnsResolver(
             currentProvider.primaryIpv4
         }
 
+        val result = queryIp(targetIp, queryBytes, 3500)
+        if (result != null) return result
+
+        // Fallback 1: Secondary IP of chosen provider
+        val secondaryResult = queryIp(currentProvider.secondaryIpv4, queryBytes, 2500)
+        if (secondaryResult != null) return secondaryResult
+
+        // Fallback 2: Ultra-reliable public resolver
+        val universalFallback = if (targetIp != "1.1.1.1") "1.1.1.1" else "8.8.8.8"
+        return queryIp(universalFallback, queryBytes, 2500)
+    }
+
+    private fun queryIp(ip: String, queryBytes: ByteArray, timeoutMs: Int): ByteArray? {
         var socket: DatagramSocket? = null
         try {
             socket = DatagramSocket()
-            // CRITICAL: Protect socket from routing through VPN TUN to prevent loops
-            val protected = vpnService.protect(socket)
-            if (!protected) {
-                // If protect fails, do not emit packet to prevent recursion loop
-                return null
-            }
-            socket.soTimeout = 2500 // 2.5 second timeout
+            vpnService.protect(socket)
 
-            val serverAddr = InetAddress.getByName(targetIp)
-            val sendPacket = DatagramPacket(queryBytes, queryBytes.size, serverAddr, 53)
-            socket.send(sendPacket)
+            try {
+                val cm = vpnService.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                cm?.activeNetwork?.bindSocket(socket)
+            } catch (e: Exception) {}
 
-            val receiveBuf = ByteArray(1500) // Standard MTU buffer
-            val receivePacket = DatagramPacket(receiveBuf, receiveBuf.size)
-            socket.receive(receivePacket)
+            socket.soTimeout = timeoutMs
 
-            val result = ByteArray(receivePacket.length)
-            System.arraycopy(receiveBuf, 0, result, 0, receivePacket.length)
-            return result
-        } catch (e: SocketTimeoutException) {
-            // Upstream timeout, try fallback to secondary if standard provider
-            return tryFallbackQuery(queryBytes)
-        } catch (e: Exception) {
-            return null
-        } finally {
-            socket?.close()
-        }
-    }
-
-    private fun tryFallbackQuery(queryBytes: ByteArray): ByteArray? {
-        val fallbackIp = currentProvider.secondaryIpv4
-        var socket: DatagramSocket? = null
-        return try {
-            socket = DatagramSocket()
-            if (!vpnService.protect(socket)) return null
-            socket.soTimeout = 2000
-            val serverAddr = InetAddress.getByName(fallbackIp)
+            val serverAddr = InetAddress.getByName(ip)
             val sendPacket = DatagramPacket(queryBytes, queryBytes.size, serverAddr, 53)
             socket.send(sendPacket)
 
@@ -105,11 +91,11 @@ class DnsResolver(
             val receivePacket = DatagramPacket(receiveBuf, receiveBuf.size)
             socket.receive(receivePacket)
 
-            val result = ByteArray(receivePacket.length)
-            System.arraycopy(receiveBuf, 0, result, 0, receivePacket.length)
-            result
+            val res = ByteArray(receivePacket.length)
+            System.arraycopy(receiveBuf, 0, res, 0, receivePacket.length)
+            return res
         } catch (e: Exception) {
-            null
+            return null
         } finally {
             socket?.close()
         }
